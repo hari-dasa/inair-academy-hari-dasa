@@ -1,4 +1,5 @@
 const PokeApi = "https://pokeapi.co/api/v2/";
+const BatchSize = 50;
 const table = base.getTable("tblEWHy8pqeEgZKUp");
 
 class PokemonTableDataHandle {
@@ -21,8 +22,8 @@ class PokemonTableDataHandle {
 
             "fldHpDnt5nlwKAUDX":   this.defineGames(game_indices),
 
-            "fldGRP2zf5yCCbE35":    await this.getRecordsIdFromTable(types, 'Types', 'type'),
-            "fldZdLOn3yJHggxDV":    await this.getRecordsIdFromTable(abilities, 'Abilities', 'ability'),
+            "fldGRP2zf5yCCbE35":    await this.getRecordsIdFromTable(types, 'tblJJmicJsbgIZhit', 'type'),
+            "fldZdLOn3yJHggxDV":    await this.getRecordsIdFromTable(abilities, 'tblwx7HWRqtU57KQj', 'ability'),
 
             "fldPXZI7TaZgHL2zr":    this.getAttachs(sprites),
         };
@@ -112,34 +113,84 @@ class PokemonTableDataHandle {
 }
 
 class PokemonOrchestrator {
-    constructor(record) {
-        this.record     = record;
+    constructor() {
         this.dataHandler = new PokemonTableDataHandle();
     }
 
-    async updatePokemon()
+    async handleBatchPokemons(records)
     {
-        await table.createRecordAsync( await this.dataHandler.formatData(this.data));
+        let formatedPokemons = [];
+        for (let x = 0; x < records.length; x++) {
+            formatedPokemons.push(await this.dataHandler.formatData(records[x]));//instead of pushing I could just replace from the given index
+        }
+        return formatedPokemons;
+    }
+
+    async getRecords()
+    {
+        const query = await table.selectRecordsAsync({fields: [table.fields[0]]});
+        return query.records;
+    }
+
+    async deleteRecords()
+    {
+        let records = await this.getRecords();
+        if(records)
+          while (records.length > 0) {
+              await table.deleteRecordsAsync(records.slice(0, BatchSize));
+              records = records.slice(BatchSize);
+          }
+    }
+
+    async createPokemons()
+    {
+        if(this.fetchedPokemons){
+            this.fetchedPokemons = this.handleBatchPokemons(this.fetchedPokemons);
+            while (this.fetchedPokemons.length > 0) {
+                await table.createRecordsAsync(this.fetchedPokemons.slice(0, BatchSize));
+                this.fetchedPokemons = this.fetchedPokemons.slice(BatchSize);
+            }
+        }
+    }
+
+    async fetchUrlPokemonsId(limit = 251)
+    {
+        const response   = await remoteFetchAsync(`${PokeApi}pokemon?limit=${limit}`);
+        this.pokemonsUrl = (await response.json()).results;
     }
     
-    async fetchdata(){
-        let response = await remoteFetchAsync(`${PokeApi}pokemon/${this.record.name.toLowerCase()}`);
-        this.data = await response.json();
-        console.log(this.data);
+    async fetchBatchPokemons(){
+        this.fetchedPokemons = [];
+
+        for (let x = 0; x < BatchSize; x++) {
+            const response = await remoteFetchAsync(this.pokemonsUrl[x].url);
+            const payload = await response.json();
+            if(payload) {
+                this.fetchedPokemons.push(payload);
+                this.pokemonsUrl.slice(x,1);
+            }
+        }
+    }
+
+    async createFetchedPokemons()
+    {
+        while(this.pokemonsUrl.length > 0)
+        {
+            await this.fetchBatchPokemons();
+            await this.createPokemons();
+        }
     }
 
     async process() {
-        if(this.record){
-            await this.fetchdata();
-            await this.updatePokemon();
-        }
-
+        await this.deleteRecords();
+        await this.fetchUrlPokemonsId();
+        await this.createFetchedPokemons();
     }
 }
 
-const queryResult = await table.selectRecordsAsync({fields: [table.fields[0]]});
-const record = await input.recordAsync("😺 Pick a Pokemón to get details: ", queryResult);
+// const queryResult = await table.selectRecordsAsync({fields: [table.fields[0]]});
+// const record = await input.recordAsync("😺 Pick a Pokemón to get details: ", queryResult);
         
-const pokemon = new PokemonOrchestrator(record);
+const pokemon = new PokemonOrchestrator();
 await pokemon.process();
 
