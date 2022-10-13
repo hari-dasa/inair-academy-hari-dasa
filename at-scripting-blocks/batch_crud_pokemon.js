@@ -25,7 +25,7 @@ class PokemonTableDataHandle {
             "fldGRP2zf5yCCbE35":    await this.getRecordsIdFromTable(types, 'tblJJmicJsbgIZhit', 'type'),
             "fldZdLOn3yJHggxDV":    await this.getRecordsIdFromTable(abilities, 'tblwx7HWRqtU57KQj', 'ability'),
 
-            "fldPXZI7TaZgHL2zr":    this.getAttachs(sprites),
+            "fldPXZI7TaZgHL2zr":     this.getAttachs(Object.values(sprites)),
         };
     }
 
@@ -41,11 +41,11 @@ class PokemonTableDataHandle {
                 middle = Math.floor((left+right) / 2);
 
                 if (records[middle].name.toLowerCase() == types[x][field].name){
-                    recordsIds.push({ id: records[middle].id});//add the id to a array like choices
+                    recordsIds.push({ id: records[middle].id});
                     types.slice(x, 1)//
                     break;
                 }else if(records[middle].name.toLowerCase()  < types[x][field].name){
-                    left = middle + 1;//error, i cannot sum the value inside this loop
+                    left = middle + 1;
                 } else {
                     right = middle - 1;
                 }
@@ -64,42 +64,28 @@ class PokemonTableDataHandle {
             ]
         });
 
-        const recordsIds = this.getRecordsIdFromFilter( queryResult.records, abilities, attributeName)
-        return recordsIds; 
+        return this.getRecordsIdFromFilter( queryResult.records, abilities, attributeName)
     }
 
     getAttachs(sprites){
-        const attachments = [] ;
-        const keys = Object.keys(sprites);
-        for(let i=0; i< keys.length; i++){
-            if(attachments.length == 2)
-                break;
-                
-            if(sprites[keys[i]] && typeof(sprites[keys[i]]) === 'string')
-                attachments.push({url: sprites[keys[i]]});
-        }
-
-        return attachments;
+        return sprites.reduce(function(result, sprite) {
+                    if(typeof(sprite === 'string') && sprite) 
+                        result.push({url: sprite});
+                    return result;
+                },
+            []).slice(0,2);
     }
 
     defineGeneration(id)
     {
         if (id <= 151)
             return {name: 'Generation I'};
-
         return {name: 'Generation II'};
     }
 
     defineGames(games)
     {
-        const choices = [] ;
-        for(let i=0; i< games.length; i++){
-            if(i >= 4)
-                break;
-            choices.push({name: games[i].version.name.capitalize()});
-        }
-        
-        return choices;
+        return games.slice(0,4).map(game => ({ name: game.version.name.capitalize()}));
     }
 
     capitalize(){
@@ -116,15 +102,6 @@ class PokemonOrchestrator {
     constructor() {
         this.dataHandler = new PokemonTableDataHandle();
     }
-
-    // async handleBatchPokemons(records)
-    // {
-    //     let formatedPokemons = [];
-    //     for (let x = 0; x < records.length; x++) {
-    //         formatedPokemons.push(await this.dataHandler.formatData(records[x]));//instead of pushing I could just replace from the given index
-    //     }
-    //     return formatedPokemons;
-    // }
 
     async getRecords()
     {
@@ -146,7 +123,6 @@ class PokemonOrchestrator {
     async createPokemons()
     {
         if(this.fetchedPokemons){
-            output.markdown(`### \u{1F648} Create ${BatchSize} Pokemóns records: `);
             while (this.fetchedPokemons.length > 0) {
                 await table.createRecordsAsync(this.fetchedPokemons.slice(0, BatchSize));
                 this.fetchedPokemons = this.fetchedPokemons.slice(BatchSize);
@@ -165,27 +141,30 @@ class PokemonOrchestrator {
     async fetchBatchPokemons(){
         this.fetchedPokemons = [];
 
-        output.markdown(`### \u{1F648} Fetch ${BatchSize} Pokemóns and format: `);
         for (let x = 0; x < BatchSize; x++) {
             if(this.pokemonsUrl[x]) {
                 const response = await remoteFetchAsync(this.pokemonsUrl[x].url);
                 const payload = await response.json();
                 if(payload) {
-                    this.fetchedPokemons.push(await this.dataHandler.formatData(payload));
+                    this.fetchedPokemons.push({ fields : await this.dataHandler.formatData(payload)});
                 }
             }
         }
         this.pokemonsUrl = this.pokemonsUrl.slice(this.fetchedPokemons.length);
-        // console.log('this.pokemonsUrl ', this.pokemonsUrl);
-        // console.log('this.fetchedPokemons ', this.fetchedPokemons );
     }
 
     async createFetchedPokemons()
     {
-        while(this.pokemonsUrl.length > 202)
+        const initial = this.pokemonsUrl.length;
+        output.markdown(`### \u{1F649} Created Pokemóns percentage: `);            
+        output.markdown(`${Math.floor(((initial - this.pokemonsUrl.length) * 100)/initial)}%`)
+
+        while(this.pokemonsUrl.length > 0)
         {
             await this.fetchBatchPokemons();
-            await this.createPokemons();
+            await this.createPokemons();            
+            output.markdown(`${Math.floor(((initial - this.pokemonsUrl.length) * 100)/initial)}%`)
+
         }
     }
 
@@ -195,13 +174,8 @@ class PokemonOrchestrator {
         await this.createFetchedPokemons();
     }
 }
-
-// const queryResult = await table.selectRecordsAsync({fields: [table.fields[0]]});
-// const record = await input.recordAsync("😺 Pick a Pokemón to get details: ", queryResult);
         
 const pokemon = new PokemonOrchestrator();
 await pokemon.process();
-// await pokemon.fetchUrlPokemonsId();
-// await  pokemon.fetchBatchPokemons();
 
 

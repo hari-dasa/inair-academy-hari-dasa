@@ -24,7 +24,7 @@ class PokemonTableDataHandle {
             "fldGRP2zf5yCCbE35":    await this.getRecordsIdFromTable(types, 'Types', 'type'),
             "fldZdLOn3yJHggxDV":    await this.getRecordsIdFromTable(abilities, 'Abilities', 'ability'),
 
-            "fldPXZI7TaZgHL2zr":    this.getAttachs(sprites),
+            "fldPXZI7TaZgHL2zr":     this.getAttachs(Object.values(sprites)),
         };
     }
 
@@ -40,11 +40,11 @@ class PokemonTableDataHandle {
                 middle = Math.floor((left+right) / 2);
 
                 if (records[middle].name.toLowerCase() == types[x][field].name){
-                    recordsIds.push({ id: records[middle].id});//add the id to a array like choices
+                    recordsIds.push({ id: records[middle].id});
                     types.slice(x, 1)//
                     break;
                 }else if(records[middle].name.toLowerCase()  < types[x][field].name){
-                    left = middle + 1;//error, i cannot sum the value inside this loop
+                    left = middle + 1;
                 } else {
                     right = middle - 1;
                 }
@@ -63,42 +63,29 @@ class PokemonTableDataHandle {
             ]
         });
 
-        const recordsIds = this.getRecordsIdFromFilter( queryResult.records, abilities, attributeName)
-        return recordsIds; 
+        return this.getRecordsIdFromFilter( queryResult.records, abilities, attributeName);
+    
     }
 
     getAttachs(sprites){
-        const attachments = [] ;
-        const keys = Object.keys(sprites);
-        for(let i=0; i< keys.length; i++){
-            if(attachments.length == 2)
-                break;
-                
-            if(sprites[keys[i]] && typeof(sprites[keys[i]]) === 'string')
-                attachments.push({url: sprites[keys[i]]});
-        }
-
-        return attachments;
+        return sprites.reduce(function(result, sprite) {
+                    if(typeof(sprite === 'string') && sprite) 
+                        result.push({url: sprite});
+                    return result;
+                },
+            []).slice(0,2);
     }
 
     defineGeneration(id)
     {
         if (id <= 151)
             return {name: 'Generation I'};
-
         return {name: 'Generation II'};
     }
 
     defineGames(games)
     {
-        const choices = [] ;
-        for(let i=0; i< games.length; i++){
-            if(i >= 4)
-                break;
-            choices.push({name: games[i].version.name.capitalize()});
-        }
-        
-        return choices;
+        return games.slice(0,2).map(game => ({ name: game.version.name.capitalize()}));
     }
 
     capitalize(){
