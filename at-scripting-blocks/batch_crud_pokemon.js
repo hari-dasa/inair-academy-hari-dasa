@@ -117,14 +117,14 @@ class PokemonOrchestrator {
         this.dataHandler = new PokemonTableDataHandle();
     }
 
-    async handleBatchPokemons(records)
-    {
-        let formatedPokemons = [];
-        for (let x = 0; x < records.length; x++) {
-            formatedPokemons.push(await this.dataHandler.formatData(records[x]));//instead of pushing I could just replace from the given index
-        }
-        return formatedPokemons;
-    }
+    // async handleBatchPokemons(records)
+    // {
+    //     let formatedPokemons = [];
+    //     for (let x = 0; x < records.length; x++) {
+    //         formatedPokemons.push(await this.dataHandler.formatData(records[x]));//instead of pushing I could just replace from the given index
+    //     }
+    //     return formatedPokemons;
+    // }
 
     async getRecords()
     {
@@ -134,6 +134,7 @@ class PokemonOrchestrator {
 
     async deleteRecords()
     {
+        output.markdown("### \u{1F580} First step, delete all record from Pokémon table:  ");
         let records = await this.getRecords();
         if(records)
           while (records.length > 0) {
@@ -145,7 +146,7 @@ class PokemonOrchestrator {
     async createPokemons()
     {
         if(this.fetchedPokemons){
-            this.fetchedPokemons = this.handleBatchPokemons(this.fetchedPokemons);
+            output.markdown(`### \u{1F648} Create ${BatchSize} Pokemóns records: `);
             while (this.fetchedPokemons.length > 0) {
                 await table.createRecordsAsync(this.fetchedPokemons.slice(0, BatchSize));
                 this.fetchedPokemons = this.fetchedPokemons.slice(BatchSize);
@@ -155,26 +156,33 @@ class PokemonOrchestrator {
 
     async fetchUrlPokemonsId(limit = 251)
     {
+        output.markdown("### \u{1F648} Get Pokemón Urls to fetch later: ");
         const response   = await remoteFetchAsync(`${PokeApi}pokemon?limit=${limit}`);
         this.pokemonsUrl = (await response.json()).results;
+        console.log(this.pokemonsUrl);
     }
     
     async fetchBatchPokemons(){
         this.fetchedPokemons = [];
 
+        output.markdown(`### \u{1F648} Fetch ${BatchSize} Pokemóns and format: `);
         for (let x = 0; x < BatchSize; x++) {
-            const response = await remoteFetchAsync(this.pokemonsUrl[x].url);
-            const payload = await response.json();
-            if(payload) {
-                this.fetchedPokemons.push(payload);
-                this.pokemonsUrl.slice(x,1);
+            if(this.pokemonsUrl[x]) {
+                const response = await remoteFetchAsync(this.pokemonsUrl[x].url);
+                const payload = await response.json();
+                if(payload) {
+                    this.fetchedPokemons.push(await this.dataHandler.formatData(payload));
+                }
             }
         }
+        this.pokemonsUrl = this.pokemonsUrl.slice(this.fetchedPokemons.length);
+        // console.log('this.pokemonsUrl ', this.pokemonsUrl);
+        // console.log('this.fetchedPokemons ', this.fetchedPokemons );
     }
 
     async createFetchedPokemons()
     {
-        while(this.pokemonsUrl.length > 0)
+        while(this.pokemonsUrl.length > 202)
         {
             await this.fetchBatchPokemons();
             await this.createPokemons();
@@ -193,4 +201,7 @@ class PokemonOrchestrator {
         
 const pokemon = new PokemonOrchestrator();
 await pokemon.process();
+// await pokemon.fetchUrlPokemonsId();
+// await  pokemon.fetchBatchPokemons();
+
 
