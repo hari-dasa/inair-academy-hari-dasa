@@ -24,7 +24,7 @@ class PokemonTableDataHandle {
             "fldGRP2zf5yCCbE35":    await this.getRecordsIdFromTable(types, 'Types', 'type'),
             "fldZdLOn3yJHggxDV":    await this.getRecordsIdFromTable(abilities, 'Abilities', 'ability'),
 
-            "fldPXZI7TaZgHL2zr":     this.getAttachs(Object.values(sprites)),
+            "fldPXZI7TaZgHL2zr":     this.getSprites(Object.values(sprites)),
         };
     }
 
@@ -67,13 +67,13 @@ class PokemonTableDataHandle {
     
     }
 
-    getAttachs(sprites){
+    getSprites(sprites){
         return sprites.reduce(function(result, sprite) {
                     if(typeof(sprite === 'string') && sprite) 
                         result.push({url: sprite});
                     return result;
                 },
-            []).slice(0,2);
+            []);
     }
 
     defineGeneration(id)
@@ -85,7 +85,7 @@ class PokemonTableDataHandle {
 
     defineGames(games)
     {
-        return games.slice(0,2).map(game => ({ name: game.version.name.capitalize()}));
+        return games.map(game => ({ name: game.version.name.capitalize()}));
     }
 
     capitalize(){

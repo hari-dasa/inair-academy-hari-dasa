@@ -3,8 +3,10 @@ const BatchSize = 50;
 const table = base.getTable("tblEWHy8pqeEgZKUp");
 
 class PokemonTableDataHandle {
-    constructor() {
-        this.capitalize();
+    constructor([abilitieRecords, typesRecords]) {
+       this.typesRecords = typesRecords;
+       this.abilitieRecords = abilitieRecords;
+       this.capitalize();
     }
 
     async formatData({id, name, height, weight, order, base_experience, stats, game_indices, sprites, types, abilities}){
@@ -22,10 +24,10 @@ class PokemonTableDataHandle {
 
             "fldHpDnt5nlwKAUDX":   this.defineGames(game_indices),
 
-            "fldGRP2zf5yCCbE35":    await this.getRecordsIdFromTable(types, 'tblJJmicJsbgIZhit', 'type'),
-            "fldZdLOn3yJHggxDV":    await this.getRecordsIdFromTable(abilities, 'tblwx7HWRqtU57KQj', 'ability'),
+            "fldGRP2zf5yCCbE35":    await this.getRecordsIdFromTable(types, 'type'),
+            "fldZdLOn3yJHggxDV":    await this.getRecordsIdFromTable(abilities, 'ability'),
 
-            "fldPXZI7TaZgHL2zr":     this.getAttachs(Object.values(sprites)),
+            "fldPXZI7TaZgHL2zr":     this.getSprites(Object.values(sprites)),
         };
     }
 
@@ -55,25 +57,22 @@ class PokemonTableDataHandle {
         return recordsIds;
     }
 
-    async getRecordsIdFromTable(abilities, tableName, attributeName){
-        const table = base.getTable(tableName);
-        const queryResult = await table.selectRecordsAsync({
-            fields: ["Name"],
-            sorts: [
-                {field: "Name"},
-            ]
-        });
+    async getRecordsIdFromTable(abilities, attributeName){
 
-        return this.getRecordsIdFromFilter( queryResult.records, abilities, attributeName)
+        if(attributeName == "ability")
+            return this.getRecordsIdFromFilter( this.abilitieRecords, abilities, attributeName)
+
+        if(attributeName == "type")
+            return this.getRecordsIdFromFilter( this.typesRecords, abilities, attributeName)
     }
 
-    getAttachs(sprites){
+    getSprites(sprites){
         return sprites.reduce(function(result, sprite) {
                     if(typeof(sprite === 'string') && sprite) 
                         result.push({url: sprite});
                     return result;
                 },
-            []).slice(0,2);
+            []);
     }
 
     defineGeneration(id)
@@ -85,7 +84,7 @@ class PokemonTableDataHandle {
 
     defineGames(games)
     {
-        return games.slice(0,4).map(game => ({ name: game.version.name.capitalize()}));
+        return games.map(game => ({ name: game.version.name.capitalize()}));
     }
 
     capitalize(){
@@ -99,8 +98,33 @@ class PokemonTableDataHandle {
 }
 
 class PokemonOrchestrator {
-    constructor() {
-        this.dataHandler = new PokemonTableDataHandle();
+
+    async createHandler()
+    {
+        const linkedTables =  await this.getLinkedTables();
+
+        this.dataHandler = new PokemonTableDataHandle(linkedTables);
+    }
+
+    async getLinkedTables()
+    {
+        const ability = base.getTable('tblwx7HWRqtU57KQj');
+        const queryResult = await ability.selectRecordsAsync({
+            fields: ["Name"],
+            sorts: [
+                {field: "Name"},
+            ]
+        });
+
+        const typeTable = base.getTable('tblJJmicJsbgIZhit');
+        const queryResultTypes = await typeTable.selectRecordsAsync({
+            fields: ["Name"],
+            sorts: [
+                {field: "Name"},
+            ]
+        });
+
+        return [ queryResult.records, queryResultTypes.records];
     }
 
     async getRecords()
@@ -135,7 +159,6 @@ class PokemonOrchestrator {
         output.markdown("### \u{1F648} Get Pokemón Urls to fetch later: ");
         const response   = await remoteFetchAsync(`${PokeApi}pokemon?limit=${limit}`);
         this.pokemonsUrl = (await response.json()).results;
-        console.log(this.pokemonsUrl);
     }
     
     async fetchBatchPokemons(){
@@ -169,6 +192,7 @@ class PokemonOrchestrator {
     }
 
     async process() {
+        await this.createHandler();
         await this.deleteRecords();
         await this.fetchUrlPokemonsId();
         await this.createFetchedPokemons();
@@ -177,5 +201,3 @@ class PokemonOrchestrator {
         
 const pokemon = new PokemonOrchestrator();
 await pokemon.process();
-
-
