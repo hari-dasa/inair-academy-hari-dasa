@@ -57,13 +57,13 @@ class PokemonTableDataHandle {
         return recordsIds;
     }
 
-    async getRecordsIdFromTable(abilities, attributeName){
+    async getRecordsIdFromTable(arrayToCompare, attributeName){
 
         if(attributeName == "ability")
-            return this.getRecordsIdFromFilter( this.abilitieRecords, abilities, attributeName)
+            return this.getRecordsIdFromFilter( this.abilitieRecords, arrayToCompare, attributeName)
 
         if(attributeName == "type")
-            return this.getRecordsIdFromFilter( this.typesRecords, abilities, attributeName)
+            return this.getRecordsIdFromFilter( this.typesRecords, arrayToCompare, attributeName)
     }
 
     getSprites(sprites){
@@ -113,8 +113,8 @@ class PokemonOrchestrator {
 
     async getLinkedTables()
     {
-        const ability = base.getTable('tblwx7HWRqtU57KQj');
-        const queryResult = await ability.selectRecordsAsync({
+        const abilityTable = base.getTable('tblwx7HWRqtU57KQj');
+        const abilityTableResult = await abilityTable.selectRecordsAsync({
             fields: ["Name"],
             sorts: [
                 {field: "Name"},
@@ -122,14 +122,14 @@ class PokemonOrchestrator {
         });
 
         const typeTable = base.getTable('tblJJmicJsbgIZhit');
-        const queryResultTypes = await typeTable.selectRecordsAsync({
+        const typeTableResult = await typeTable.selectRecordsAsync({
             fields: ["Name"],
             sorts: [
                 {field: "Name"},
             ]
         });
 
-        return [ queryResult.records, queryResultTypes.records];
+        return [ abilityTableResult.records, typeTableResult.records];
     }
 
     async getRecords()
@@ -162,7 +162,7 @@ class PokemonOrchestrator {
     async fetchUrlPokemonsId(limit = 251)
     {
         output.markdown("### \u{1F648} Get Pokemón Urls to fetch later: ");
-        const response   = await remoteFetchAsync(`${PokeApi}pokemon?limit=${limit}`);
+        const response   = await fetch(`${PokeApi}pokemon?limit=${limit}`);
         this.pokemonsUrl = (await response.json()).results;
     }
     
@@ -171,7 +171,7 @@ class PokemonOrchestrator {
 
         for (let x = 0; x < BatchSize; x++) {
             if(this.pokemonsUrl[x]) {
-                const response = await remoteFetchAsync(this.pokemonsUrl[x].url);
+                const response = await fetch(this.pokemonsUrl[x].url);
                 const payload = await response.json();
                 if(payload) {
                     this.fetchedPokemons.push({ fields : await this.dataHandler.formatData(payload)});
