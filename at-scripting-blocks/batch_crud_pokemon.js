@@ -68,7 +68,7 @@ class PokemonTableDataHandle {
 
     getSprites(sprites){
         return sprites.reduce(function(result, sprite) {
-                    if(typeof(sprite === 'string') && sprite) 
+                    if((typeof sprite) === 'string') 
                         result.push({url: sprite});
                     return result;
                 },
@@ -84,7 +84,12 @@ class PokemonTableDataHandle {
 
     defineGames(games)
     {
-        return games.map(game => ({ name: game.version.name.capitalize()}));
+        return games.slice(0,4).map(game => {
+            if(game.version.name.includes('-'))  
+                return { name: game.version.name.replace('-', ' ').capitalize()};
+            else 
+                return { name: game.version.name.capitalize()};
+        });
     }
 
     capitalize(){
